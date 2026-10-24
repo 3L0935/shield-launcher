@@ -14,12 +14,60 @@
 
 namespace fs = std::filesystem;
 
+namespace {
+    // Only the launcher folder holds these. project-bo4.json and LPC also exist
+    // next to the game executable, so they cannot be used as a signal.
+    bool looksLikeLauncherDir(const fs::path& dir) {
+        return fs::exists(dir / "images" / "launcher.png") ||
+               fs::exists(dir / "solo.zip") ||
+               fs::exists(dir / "mp.zip") ||
+               fs::exists(dir / "exe.zip");
+    }
+
+    fs::path resolveLauncherDir() {
+        // /proc/self/exe is the resolved target, so a shortcut symlinked from
+        // the game folder still points at the real launcher directory
+        fs::path exePath;
+        std::error_code ec;
+        const fs::path procPath = fs::read_symlink("/proc/self/exe", ec);
+        if (!ec && !procPath.empty()) {
+            exePath = procPath;
+        } else {
+            exePath = QCoreApplication::applicationFilePath().toStdString();
+        }
+
+        const fs::path base = exePath.parent_path();
+        if (looksLikeLauncherDir(base)) {
+            return base;
+        }
+
+        const fs::path nested = base / "project-bo4" / "launcher";
+        if (looksLikeLauncherDir(nested)) {
+            return nested;
+        }
+
+        return base;
+    }
+
+    // The Windows folder is called "Sounds", a case sensitive filesystem needs a probe
+    fs::path resolveSoundsDir(const fs::path& launcherDir) {
+        for (const char* name : {"sounds", "Sounds", "SOUNDS"}) {
+            const fs::path candidate = launcherDir / name;
+            if (fs::exists(candidate)) {
+                return candidate;
+            }
+        }
+
+        return launcherDir / "sounds";
+    }
+}
+
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent),
-launcherDir(QCoreApplication::applicationDirPath().toStdWString()),
+launcherDir(resolveLauncherDir().wstring()),
 serverIpFile((fs::path(launcherDir) / L"servers.txt").wstring()),
 reshadeEnabled(false),
 volume(100),
-soundPath((fs::path(launcherDir) / L"sounds" / L"startup_sound.mp3").wstring()),
+soundPath((resolveSoundsDir(fs::path(launcherDir)) / L"startup_sound.mp3").wstring()),
 vanillaButton(nullptr),
 onlineButton(nullptr),
 offlineButton(nullptr),
@@ -34,8 +82,8 @@ volumeLabel(nullptr),
 volumeSlider(nullptr),
 progressBar(nullptr)
 {
-    fs::create_directories(launcherDir);
-    fs::create_directories(fs::path(launcherDir) / "sounds");
+    fs::create_directories(fs::path(launcherDir));
+    fs::create_directories(resolveSoundsDir(fs::path(launcherDir)));
 
     setWindowTitle("Project-BO4");
     setFixedSize(800, 600);
