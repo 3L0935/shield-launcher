@@ -128,6 +128,8 @@
 #include <QtWidgets/QTabWidget>
 #include <QtWidgets/QTreeWidget>
 #include <QtWidgets/QStyledItemDelegate>
+#include <QtWidgets/QDialogButtonBox>
+#include <QtWidgets/QListWidget>
 
 #include <QtCore/QObject>
 #include <QtCore/QString>
@@ -153,6 +155,7 @@
 #include <QtCore/QWaitCondition>
 #include <QtCore/QReadWriteLock>
 #include <QtCore/QDateTime>
+#include <QtCore/QSignalBlocker>
 
 #include <QHeaderView>
 #include <QFileInfo>
