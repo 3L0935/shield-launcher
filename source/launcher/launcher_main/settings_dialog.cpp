@@ -7,6 +7,19 @@
 
 namespace fs = std::filesystem;
 
+namespace {
+    // fopen_s() only exists on MSVC
+    FILE* openSettingsFile(const char* path, const char* mode) {
+#ifdef _WIN32
+        FILE* fp = nullptr;
+        fopen_s(&fp, path, mode);
+        return fp;
+#else
+        return std::fopen(path, mode);
+#endif
+    }
+}
+
 class SettingsItemDelegate : public QStyledItemDelegate {
 public:
     explicit SettingsItemDelegate(QObject* parent = nullptr) : QStyledItemDelegate(parent) {}
@@ -16,7 +29,7 @@ public:
 
         /*
         QString type = index.data(Qt::UserRole).toString();
-        
+
         if (type == "bool") {
             QComboBox* comboBox = new QComboBox(parent);
             comboBox->addItem("false", false);
@@ -38,13 +51,13 @@ public:
             return lineEdit;
         }
         */
-        
+
         return nullptr;
     }
 
     void setEditorData(QWidget* editor, const QModelIndex& index) const override {
         QString type = index.data(Qt::UserRole).toString();
-        
+
         if (type == "bool") {
             bool value = index.data(Qt::UserRole + 1).toBool();
             QComboBox* comboBox = dynamic_cast<QComboBox*>(editor);
@@ -76,7 +89,7 @@ public:
 
     void setModelData(QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const override {
         QString type = index.data(Qt::UserRole).toString();
-        
+
         if (type == "bool") {
             QComboBox* comboBox = dynamic_cast<QComboBox*>(editor);
             if (comboBox) {
@@ -113,7 +126,7 @@ public:
     bool editorEvent(QEvent* event, QAbstractItemModel* model, const QStyleOptionViewItem& option, const QModelIndex& index) override {
         if (index.column() == 1) {
             QString type = index.data(Qt::UserRole).toString();
-            
+
             if (type == "bool" && event->type() == QEvent::MouseButtonRelease) {
                 bool currentValue = index.data(Qt::UserRole + 1).toBool();
                 bool newValue = !currentValue;
@@ -129,17 +142,17 @@ public:
                         if (item) {
                             QString currentValue = index.data(Qt::UserRole + 1).toString();
                             QString itemName = item->text(0);
-                            
+
                             bool ok;
                             QString newValue = QInputDialog::getText(
-                                treeWidget, 
-                                "Edit " + itemName, 
-                                "Enter value for " + itemName + ":", 
-                                QLineEdit::Normal, 
-                                currentValue, 
+                                treeWidget,
+                                "Edit " + itemName,
+                                "Enter value for " + itemName + ":",
+                                QLineEdit::Normal,
+                                currentValue,
                                 &ok
                             );
-                            
+
                             if (ok) {
                                 model->setData(index, newValue, Qt::DisplayRole);
                                 model->setData(index, newValue, Qt::UserRole + 1);
@@ -150,7 +163,7 @@ public:
                 }
             }
         }
-        
+
         return QStyledItemDelegate::editorEvent(event, model, option, index);
     }
 };
@@ -158,18 +171,18 @@ public:
 SettingsDialog::SettingsDialog(QWidget* parent) : QDialog(parent) {
     setWindowTitle("Settings");
     setMinimumSize(600, 500);
-    
+
     WindowUtils::setWindowIcon(this);
-    
+
     createLayout();
-    
+
     connect(saveButton, &QPushButton::clicked, this, &SettingsDialog::saveSettings);
     connect(resetButton, &QPushButton::clicked, this, &SettingsDialog::resetSettings);
     connect(cancelButton, &QPushButton::clicked, this, &QDialog::reject);
-    
+
     treeWidget->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(treeWidget, &QTreeWidget::customContextMenuRequested, this, &SettingsDialog::showContextMenu);
-    
+
     connect(treeWidget, &QTreeWidget::itemDoubleClicked, this, [this](QTreeWidgetItem* item, int column) {
         if (column == 1 && item->childCount() == 0) {
             treeWidget->editItem(item, column);
@@ -183,9 +196,9 @@ SettingsDialog::~SettingsDialog() {
 void SettingsDialog::showContextMenu(const QPoint& pos) {
     QTreeWidgetItem* item = treeWidget->itemAt(pos);
     if (!item) return;
-    
+
     QMenu contextMenu(this);
-    
+
     if (item->childCount() == 0) {
         QAction* editAction = new QAction("Edit Value", this);
         connect(editAction, &QAction::triggered, this, [this, item]() {
@@ -193,7 +206,7 @@ void SettingsDialog::showContextMenu(const QPoint& pos) {
         });
         contextMenu.addAction(editAction);
     }
-    
+
     if (!contextMenu.actions().isEmpty()) {
         contextMenu.exec(treeWidget->mapToGlobal(pos));
     }
@@ -208,7 +221,7 @@ void SettingsDialog::createLayout() {
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(10, 10, 10, 10);
     mainLayout->setSpacing(10);
-    
+
     treeWidget = new QTreeWidget(this);
     treeWidget->setColumnCount(2);
     treeWidget->setHeaderLabels(QStringList() << "Setting" << "Value");
@@ -229,7 +242,7 @@ void SettingsDialog::createLayout() {
         "   border-bottom: 1px solid #222222;"
         "}"
         "QTreeWidget::item:selected {"
-        "   background-color: #1a3c5e;"  
+        "   background-color: #1a3c5e;"
         "}"
         "QTreeWidget::branch {"
         "   background-color: transparent;"
@@ -241,52 +254,52 @@ void SettingsDialog::createLayout() {
         "   border: 1px solid #333333;"
         "}"
     );
-    
+
     QHeaderView* header = treeWidget->header();
     header->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     header->setSectionResizeMode(1, QHeaderView::Stretch);
-    
+
     connect(treeWidget, &QTreeWidget::customContextMenuRequested, this, &SettingsDialog::showContextMenu);
-    
+
     mainLayout->addWidget(treeWidget);
-    
+
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     buttonLayout->setSpacing(10);
-    
+
     saveButton = new QPushButton("Save", this);
     resetButton = new QPushButton("Reset", this);
     cancelButton = new QPushButton("Cancel", this);
-    
-    QString buttonStyle = 
+
+    QString buttonStyle =
         "QPushButton {"
-        "   background-color: #1a3c5e;"  
+        "   background-color: #1a3c5e;"
         "   color: white;"
         "   border: none;"
         "   padding: 8px 16px;"
         "   min-width: 100px;"
         "}"
         "QPushButton:hover {"
-        "   background-color: #2a5c8e;"  
+        "   background-color: #2a5c8e;"
         "}"
         "QPushButton:pressed {"
-        "   background-color: #0a2c4e;"  
+        "   background-color: #0a2c4e;"
         "}";
-    
+
     saveButton->setStyleSheet(buttonStyle);
     resetButton->setStyleSheet(buttonStyle);
     cancelButton->setStyleSheet(buttonStyle);
-    
+
     connect(saveButton, &QPushButton::clicked, this, &SettingsDialog::saveSettings);
     connect(resetButton, &QPushButton::clicked, this, &SettingsDialog::resetSettings);
     connect(cancelButton, &QPushButton::clicked, this, &QDialog::reject);
-    
+
     buttonLayout->addStretch();
     buttonLayout->addWidget(saveButton);
     buttonLayout->addWidget(resetButton);
     buttonLayout->addWidget(cancelButton);
-    
+
     mainLayout->addLayout(buttonLayout);
-    
+
     setStyleSheet(
         "QDialog {"
         "   background-color: #0a0a0a;"
@@ -297,14 +310,14 @@ void SettingsDialog::createLayout() {
         "   color: white;"
         "   border: 1px solid #333333;"
         "   padding: 5px;"
-        "   selection-background-color: #1a3c5e;"  
+        "   selection-background-color: #1a3c5e;"
         "}"
         "QSpinBox {"
         "   background-color: #151515;"
         "   color: white;"
         "   border: 1px solid #333333;"
         "   padding: 5px;"
-        "   selection-background-color: #1a3c5e;"  
+        "   selection-background-color: #1a3c5e;"
         "}"
         "QCheckBox {"
         "   color: white;"
@@ -318,7 +331,7 @@ void SettingsDialog::createLayout() {
         "   border: 1px solid #333333;"
         "}"
         "QCheckBox::indicator:checked {"
-        "   background-color: #1a3c5e;"  
+        "   background-color: #1a3c5e;"
         "   border: 1px solid #333333;"
         "}"
     );
@@ -326,32 +339,31 @@ void SettingsDialog::createLayout() {
 
 void SettingsDialog::loadSettings() {
     treeWidget->clear();
-    
+
     if (!fs::exists(jsonPath)) {
         showMessageBox(QMessageBox::Critical, "Error", "Could not find project-bo4.json file");
         return;
     }
-    
-    FILE* fp = nullptr;
-    fopen_s(&fp, jsonPath.c_str(), "rb");
+
+    FILE* fp = openSettingsFile(jsonPath.c_str(), "rb");
     if (!fp) {
         showMessageBox(QMessageBox::Critical, "Error", "Failed to open settings file");
         return;
     }
-    
+
     char readBuffer[65536];
     rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
     rapidjson::Document doc;
     doc.ParseStream(is);
     fclose(fp);
-    
+
     if (doc.HasParseError() || !doc.IsObject()) {
         showMessageBox(QMessageBox::Critical, "Error", "Invalid JSON format in settings file");
         return;
     }
-    
+
     populateTreeWidget(doc);
-    
+
     treeWidget->expandAll();
 }
 
@@ -359,39 +371,39 @@ void SettingsDialog::populateTreeWidget(const rapidjson::Value& jsonObj, QTreeWi
     for (auto it = jsonObj.MemberBegin(); it != jsonObj.MemberEnd(); ++it) {
         QString name = QString::fromUtf8(it->name.GetString());
         QString currentPath = path.isEmpty() ? name : path + "." + name;
-        
+
         QTreeWidgetItem* item;
         if (parentItem) {
             item = new QTreeWidgetItem(parentItem);
         } else {
             item = new QTreeWidgetItem(treeWidget);
         }
-        
+
         item->setText(0, name);
         item->setData(0, Qt::UserRole, currentPath);
-        
+
         if (it->value.IsObject()) {
             item->setText(1, "");
             item->setData(1, Qt::UserRole, "object");
-            
-            item->setBackground(0, QColor(26, 60, 94)); 
+
+            item->setBackground(0, QColor(26, 60, 94));
             item->setBackground(1, QColor(26, 60, 94));
-            item->setForeground(0, QColor(255, 255, 255)); 
+            item->setForeground(0, QColor(255, 255, 255));
             item->setForeground(1, QColor(255, 255, 255));
-            
+
             QFont font = item->font(0);
             font.setBold(true);
             item->setFont(0, font);
-            
+
             populateTreeWidget(it->value, item, currentPath);
         } else if (it->value.IsBool()) {
             bool value = it->value.GetBool();
-            
+
             item->setText(1, value ? "true" : "false");
             item->setData(1, Qt::UserRole, "bool");
-            item->setData(1, Qt::UserRole + 1, value);        
+            item->setData(1, Qt::UserRole + 1, value);
             item->setFlags(item->flags() | Qt::ItemIsEditable);
-            
+
             if (value) {
                 item->setBackground(1, QColor(26, 60, 94, 128));
             } else {
@@ -402,14 +414,14 @@ void SettingsDialog::populateTreeWidget(const rapidjson::Value& jsonObj, QTreeWi
             item->setText(1, QString::number(value));
             item->setData(1, Qt::UserRole, "int64");
             item->setData(1, Qt::UserRole + 1, value);
-            
+
             item->setFlags(item->flags() | Qt::ItemIsEditable);
         } else if (it->value.IsInt()) {
             int value = it->value.GetInt();
             item->setText(1, QString::number(value));
             item->setData(1, Qt::UserRole, "int");
             item->setData(1, Qt::UserRole + 1, value);
-            
+
             item->setFlags(item->flags() | Qt::ItemIsEditable);
         } else if (it->value.IsString()) {
             QString value = QString::fromUtf8(it->value.GetString());
@@ -417,11 +429,11 @@ void SettingsDialog::populateTreeWidget(const rapidjson::Value& jsonObj, QTreeWi
             item->setData(1, Qt::UserRole, "string");
             item->setData(1, Qt::UserRole + 1, value);
             item->setFlags(item->flags() | Qt::ItemIsEditable);
-            
+
             if (name == "name" && path == "identity") {
-                item->setBackground(0, QColor(26, 60, 94)); 
+                item->setBackground(0, QColor(26, 60, 94));
                 item->setBackground(1, QColor(26, 60, 94));
-                item->setForeground(0, QColor(255, 255, 255)); 
+                item->setForeground(0, QColor(255, 255, 255));
                 item->setForeground(1, QColor(255, 255, 255));
             }
         } else if (it->value.IsArray()) {
@@ -443,20 +455,20 @@ void SettingsDialog::populateTreeWidget(const rapidjson::Value& jsonObj, QTreeWi
 void SettingsDialog::saveSettings() {
     rapidjson::Document doc;
     doc.SetObject();
-    
+
     for (int i = 0; i < treeWidget->topLevelItemCount(); ++i) {
         QTreeWidgetItem* item = treeWidget->topLevelItem(i);
         QString name = item->text(0);
-        
+
         rapidjson::Value jsonKey(name.toUtf8().constData(), doc.GetAllocator());
         rapidjson::Value jsonValue;
-        
+
         if (item->childCount() > 0) {
             jsonValue.SetObject();
             saveJsonFromTreeWidget(doc, jsonValue, item, doc.GetAllocator());
         } else {
             QString type = item->data(1, Qt::UserRole).toString();
-            
+
             if (type == "bool") {
                 jsonValue.SetBool(item->data(1, Qt::UserRole + 1).toBool());
             } else if (type == "int") {
@@ -470,23 +482,22 @@ void SettingsDialog::saveSettings() {
                 jsonValue.SetString(str.c_str(), doc.GetAllocator());
             }
         }
-        
+
         doc.AddMember(jsonKey, jsonValue, doc.GetAllocator());
     }
-    
-    FILE* fp = nullptr;
-    fopen_s(&fp, jsonPath.c_str(), "wb");
+
+    FILE* fp = openSettingsFile(jsonPath.c_str(), "wb");
     if (!fp) {
         showMessageBox(QMessageBox::Critical, "Error", "Failed to save settings file");
         return;
     }
-    
+
     char writeBuffer[65536];
     rapidjson::FileWriteStream os(fp, writeBuffer, sizeof(writeBuffer));
     rapidjson::PrettyWriter<rapidjson::FileWriteStream> writer(os);
     doc.Accept(writer);
     fclose(fp);
-    
+
     //showMessageBox(QMessageBox::Information, "Success", "Settings saved successfully");
     accept();
 }
@@ -495,16 +506,16 @@ void SettingsDialog::saveJsonFromTreeWidget(rapidjson::Document& doc, rapidjson:
     for (int i = 0; i < item->childCount(); ++i) {
         QTreeWidgetItem* childItem = item->child(i);
         QString name = childItem->text(0);
-        
+
         rapidjson::Value jsonKey(name.toUtf8().constData(), allocator);
         rapidjson::Value jsonValue;
-        
+
         if (childItem->childCount() > 0) {
             jsonValue.SetObject();
             saveJsonFromTreeWidget(doc, jsonValue, childItem, allocator);
         } else {
             QString type = childItem->data(1, Qt::UserRole).toString();
-            
+
             if (type == "bool") {
                 jsonValue.SetBool(childItem->data(1, Qt::UserRole + 1).toBool());
             } else if (type == "int") {
@@ -518,16 +529,16 @@ void SettingsDialog::saveJsonFromTreeWidget(rapidjson::Document& doc, rapidjson:
                 jsonValue.SetString(str.c_str(), allocator);
             }
         }
-        
+
         jsonObj.AddMember(jsonKey, jsonValue, allocator);
     }
 }
 
 void SettingsDialog::resetSettings() {
-    QMessageBox msgBox(QMessageBox::Question, "Reset Settings", "Are you sure you want to reset all settings to default?", 
+    QMessageBox msgBox(QMessageBox::Question, "Reset Settings", "Are you sure you want to reset all settings to default?",
                       QMessageBox::Yes | QMessageBox::No, this);
     WindowUtils::setWindowIcon(&msgBox);
-    
+
     if (msgBox.exec() == QMessageBox::Yes) {
         JsonUtils::createDefaultJson(jsonPath);
         loadSettings();

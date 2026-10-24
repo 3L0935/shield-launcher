@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef _WIN32
+
 #pragma warning(push)
 #pragma warning(disable: 4100)
 #pragma warning(disable: 4127)
@@ -45,10 +47,23 @@
 #include <atlbase.h>
 #include <iphlpapi.h>
 #include <wincrypt.h>
-#include <set>
-#include <filesystem>
 #include <mmdeviceapi.h>
 #include <endpointvolume.h>
+
+#else // _WIN32
+
+#include <fcntl.h>
+#include <unistd.h>
+#include <cstdlib>
+#include <cstring>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+
+#endif // _WIN32
+
+#include <set>
+#include <filesystem>
 
 // min and max is required by gdi, therefore NOMINMAX won't work
 #ifdef max
@@ -163,6 +178,7 @@
 
 
 
+#ifdef _WIN32
 #pragma warning(pop)
 #pragma warning(disable: 4100)
 
@@ -175,7 +191,8 @@
 
 
 #pragma comment(lib, "bcrypt.lib") // libevent-arc4random
-//#pragma comment(lib, "glog.lib") 
+//#pragma comment(lib, "glog.lib")
+#endif // _WIN32
 
 
 

@@ -3,10 +3,12 @@
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
+#ifdef _WIN32
 #include <wininet.h>
 #include <shlobj.h>
 #pragma comment(lib, "wininet.lib")
 #include "configuration.hpp"
+#endif
 #include "debugging/serverlog.hpp"
 #include <QtWidgets/QMessageBox>
 #include <QtWidgets/QWidget>
@@ -15,6 +17,7 @@
 namespace updater {
     const std::string SERVER_VERSION = "1.1.1";
 
+#ifdef _WIN32
     const std::string GITHUB_API_URL = "https://api.github.com/repos/NotNierPea/shield-launcher/releases/latest";
     const std::string DOWNLOAD_URL_BASE = "https://github.com/NotNierPea/shield-launcher/releases/download/";
 
@@ -183,11 +186,13 @@ namespace updater {
         logger::write(logger::LOG_LEVEL_ERROR, logger::LOG_LABEL_INITIALIZER, "Failed to parse GitHub API response");
         return false;
     }
+#endif // _WIN32
 
     std::string get_server_version() {
         return SERVER_VERSION;
     }
 
+#ifdef _WIN32
     bool check_and_prompt_for_updates(QWidget* parent) {
         if (check_for_updates()) {
             std::string latestVersion = utils::configuration::ReadString("UpdateInfo", "LatestVersion", "release");
@@ -301,7 +306,7 @@ namespace updater {
 
         std::string batchContent = "@echo off\r\n";
         batchContent += "echo Waiting for launcher to close...\r\n";
-        batchContent += "ping -n 5 127.0.0.1 > nul\r\n"; 
+        batchContent += "ping -n 5 127.0.0.1 > nul\r\n";
 
         batchContent += "echo Extracting update files...\r\n";
         batchContent += "powershell -Command \"Expand-Archive -Path '" + zipPath + "' -DestinationPath '" + updateDir + "' -Force\"\r\n";
@@ -314,7 +319,7 @@ namespace updater {
         batchContent += "echo Updating files...\r\n";
         batchContent += "taskkill /f /im \"" + exeName + "\" > nul 2>&1\r\n";
         batchContent += "ping -n 2 127.0.0.1 > nul\r\n";
-        
+
         batchContent += "echo Checking for update files...\r\n";
         batchContent += "if exist \"" + updateDir + "\\Project_BO4\\*\" (\r\n";
         batchContent += "  echo Found nested Project_BO4 folder\r\n";
@@ -332,7 +337,7 @@ namespace updater {
         batchContent += "  echo Using root folder\r\n";
         batchContent += "  xcopy /s /y \"" + updateDir + "\\*\" \"" + projectDir + "\\\" > nul\r\n";
         batchContent += ")\r\n";
-        
+
         batchContent += "if %ERRORLEVEL% NEQ 0 (\r\n";
         batchContent += "  echo Failed to copy update files!\r\n";
         batchContent += "  pause\r\n";
@@ -365,7 +370,7 @@ namespace updater {
         sei.lpFile = updateBatchPath.c_str();
         sei.lpParameters = "";
         sei.lpDirectory = NULL;
-        sei.nShow = SW_SHOW;  
+        sei.nShow = SW_SHOW;
 
         if (ShellExecuteExA(&sei)) {
             logger::write(logger::LOG_LEVEL_INFO, logger::LOG_LABEL_UPDATE, "[UPDATE] Update script started successfully");
@@ -379,4 +384,14 @@ namespace updater {
                 "[ERROR] Failed to start update script. Error code: %d", GetLastError());
         }
     }
+#else // _WIN32
+    // The updater replaces Shield_Launcher.exe with a Windows asset. There is
+    // no Linux asset to install, so the update check is a no-op there.
+    bool check_and_prompt_for_updates(QWidget* /*parent*/) {
+        return false;
+    }
+
+    void download_and_update() {
+    }
+#endif // _WIN32
 }

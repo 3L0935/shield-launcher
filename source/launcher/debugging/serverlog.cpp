@@ -52,18 +52,24 @@ namespace logger
 
     void write(LogLevel level, LogLabel label, const char* fmt, ...)
     {
+#ifdef _WIN32
         // Set console output to UTF-8
         static bool utf8_initialized = false;
         if (!utf8_initialized) {
             SetConsoleOutputCP(CP_UTF8);
             utf8_initialized = true;
         }
+#endif
 
         char va_buffer[85768] = { 0 }; // Increased from 0x1000 to 8192
 
         va_list ap;
         va_start(ap, fmt);
+#ifdef _WIN32
         vsprintf_s(va_buffer, fmt, ap);
+#else
+        vsnprintf(va_buffer, sizeof(va_buffer), fmt, ap);
+#endif
         va_end(ap);
 
         std::stringstream stream;
@@ -80,6 +86,7 @@ namespace logger
         }
         stream << " " << va_buffer;
 
+#ifdef _WIN32
         HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
         if (hConsole != INVALID_HANDLE_VALUE)
         {
@@ -111,11 +118,14 @@ namespace logger
 
             std::cout << stream.str() << std::endl;
 
-            // Reset color 
+            // Reset color
             SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
         }
+#else
+        std::cout << stream.str() << std::endl;
+#endif // _WIN32
 
-#ifdef OUTPUT_DEBUG_API
+#if defined(OUTPUT_DEBUG_API) && defined(_WIN32)
         OutputDebugStringA(stream.str().c_str());
 #endif // OUTPUT_DEBUG_API
 
@@ -136,7 +146,7 @@ namespace logger
         stream << "" << std::put_time(t, "%Y-%m-%d %H:%M:%S") << "\t";
 #endif // PREPEND_TIMESTAMP
 
-#ifdef OUTPUT_DEBUG_API
+#if defined(OUTPUT_DEBUG_API) && defined(_WIN32)
         OutputDebugStringA(ss.str().c_str());
 #endif // OUTPUT_DEBUG_API
 
