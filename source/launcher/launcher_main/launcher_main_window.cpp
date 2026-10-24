@@ -7,13 +7,16 @@
 #include "../launcher_funcs/dll_loading.hpp"
 #include "../launcher_funcs/json_utils.hpp"
 #include "../launcher_funcs/auto_update.hpp"
-#include <mmsystem.h>
+#include "../launcher_funcs/audio.hpp"
+#ifndef _WIN32
+#include "../launcher_funcs/launch_linux.hpp"
+#endif
 
 namespace fs = std::filesystem;
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent),
-launcherDir(QCoreApplication::applicationDirPath().toStdWString()),  
-serverIpFile((fs::path(launcherDir) / L"servers.txt").wstring()),  
+launcherDir(QCoreApplication::applicationDirPath().toStdWString()),
+serverIpFile((fs::path(launcherDir) / L"servers.txt").wstring()),
 reshadeEnabled(false),
 volume(100),
 soundPath((fs::path(launcherDir) / L"sounds" / L"startup_sound.mp3").wstring()),
@@ -38,35 +41,10 @@ progressBar(nullptr)
     setFixedSize(800, 600);
 
 
-    HINSTANCE hInstance = GetModuleHandle(NULL);
-    HICON hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(101));
-
-    if (hIcon) {
-        SendMessage((HWND)winId(), WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
-        SendMessage((HWND)winId(), WM_SETICON, ICON_BIG, (LPARAM)hIcon);
-    }
-    else {
-        fs::path iconPath = fs::path(launcherDir) / "images" / "icon.ico";
-        if (fs::exists(iconPath)) {
-            HICON fileIcon = (HICON)LoadImageW(
-                NULL,
-                std::wstring(iconPath.wstring()).c_str(),
-                IMAGE_ICON,
-                0, 0,
-                LR_LOADFROMFILE
-            );
-
-            if (fileIcon) {
-                SendMessage((HWND)winId(), WM_SETICON, ICON_SMALL, (LPARAM)fileIcon);
-                SendMessage((HWND)winId(), WM_SETICON, ICON_BIG, (LPARAM)fileIcon);
-            }
-
-            QIcon icon(QString::fromStdString(iconPath.string()));
-            if (!icon.isNull()) {
-                setWindowIcon(icon);
-                QApplication::setWindowIcon(icon);
-            }
-        }
+    // window / taskbar icon (Win32 resource on Windows, packaged file elsewhere)
+    WindowUtils::setWindowIcon(this);
+    if (!windowIcon().isNull()) {
+        QApplication::setWindowIcon(windowIcon());
     }
 
     setAttribute(Qt::WA_TranslucentBackground);
@@ -172,13 +150,43 @@ progressBar(nullptr)
     closeLauncherCheckbox->setStyleSheet("color: white; background: transparent; font-weight: bold;");
     settingsLayout->addWidget(closeLauncherCheckbox);
 
-    //settings button 
+    //settings button
     settingsButton = new QPushButton("Client Settings", this);
     settingsButton->setStyleSheet("background-color: rgba(85, 85, 85, 180); color: white; border: none; padding: 5px; min-width: 80px;");
     settingsButton->setFixedWidth(120);
     settingsLayout->addWidget(settingsButton);
 
     mainLayout->addLayout(settingsLayout);
+
+#ifndef _WIN32
+    // Linux only: pick the Proton/Wine runtime and the wine prefix
+    QHBoxLayout* runtimeLayout = new QHBoxLayout();
+
+    runtimeLabel = new QLabel("Proton:", this);
+    runtimeLabel->setStyleSheet("color: white; background: transparent; font-weight: bold;");
+    runtimeLayout->addWidget(runtimeLabel);
+
+    runtimeCombo = new QComboBox(this);
+    runtimeCombo->setFixedWidth(190);
+    runtimeCombo->setStyleSheet("background-color: rgba(40, 40, 40, 180); color: white; border: 1px solid rgba(85, 85, 85, 180); padding: 2px;");
+    runtimeLayout->addWidget(runtimeCombo);
+
+    prefixButton = new QPushButton("Prefix...", this);
+    prefixButton->setStyleSheet("background-color: rgba(85, 85, 85, 180); color: white; border: none; padding: 5px;");
+    prefixButton->setToolTip("Wine prefix used to run the game");
+    runtimeLayout->addWidget(prefixButton);
+
+    QSpacerItem* runtimeSpacer = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
+    runtimeLayout->addItem(runtimeSpacer);
+
+    mainLayout->addLayout(runtimeLayout);
+
+    refreshRuntimeCombo();
+
+    connect(runtimeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MainWindow::onRuntimeChanged);
+    connect(prefixButton, &QPushButton::clicked, this, &MainWindow::choosePrefix);
+#endif
 
     //button layout
     QHBoxLayout* buttonLayout = new QHBoxLayout();
@@ -491,11 +499,10 @@ void MainWindow::updateVolume(int value) {
     // Only update the internal volume variable, don't change system volume
     volume = value;
     volumeLabel->setText(QString("Volume: %1%").arg(value));
-    
+
     // If the MP3 is currently playing, update its volume
-    std::wstring volumeCmd = L"setaudio mp3 volume to " + std::to_wstring(value * 10);
-    mciSendStringW(volumeCmd.c_str(), NULL, 0, NULL);
-    
+    launcher_audio::setVolume(value);
+
     // Save the volume setting
     saveVolumeSettings();
 }
@@ -517,36 +524,7 @@ void MainWindow::playStartupSound() {
         return;
     }
 
-    // Close any existing MP3 playback
-    std::wstring closeCmd = L"close mp3";
-    mciSendStringW(closeCmd.c_str(), NULL, 0, NULL);
-
-    // Open the MP3 file
-    std::wstring openCmd = L"open \"" + soundPath + L"\" type mpegvideo alias mp3";
-    MCIERROR openError = mciSendStringW(openCmd.c_str(), NULL, 0, NULL);
-    
-    if (openError != 0) {
-        wchar_t errorText[256];
-        mciGetErrorStringW(openError, errorText, 256);
-        QMessageBox::warning(this, "Sound Error", "Failed to open sound file: " + 
-                            QString::fromWCharArray(errorText));
-        return;
-    }
-    
-    // Set the volume for the MP3 (volume range for MCI is 0-1000, our volume is 0-100)
-    std::wstring volumeCmd = L"setaudio mp3 volume to " + std::to_wstring(volume * 10);
-    mciSendStringW(volumeCmd.c_str(), NULL, 0, NULL);
-
-    // Play the MP3
-    std::wstring playCmd = L"play mp3";
-    MCIERROR playError = mciSendStringW(playCmd.c_str(), NULL, 0, NULL);
-    
-    if (playError != 0) {
-        wchar_t errorText[256];
-        mciGetErrorStringW(playError, errorText, 256);
-        QMessageBox::warning(this, "Sound Error", "Failed to play sound file: " + 
-                            QString::fromWCharArray(errorText));
-    }
+    launcher_audio::playStartupSound(this, soundPath, volume);
 }
 
 void MainWindow::showMessageBox(QMessageBox::Icon icon, const QString& title, const QString& text) {
@@ -678,7 +656,7 @@ void MainWindow::saveVolumeSettings() {
         outFile.close();
     }
     catch (const std::exception& e) {
-        
+
     }
 }
 
@@ -695,14 +673,14 @@ void MainWindow::loadVolumeSettings() {
                 rapidjson::Document document;
                 document.Parse(jsonContent.c_str());
 
-                if (document.IsObject() && document.HasMember("audio") && 
-                    document["audio"].IsObject() && document["audio"].HasMember("volume") && 
+                if (document.IsObject() && document.HasMember("audio") &&
+                    document["audio"].IsObject() && document["audio"].HasMember("volume") &&
                     document["audio"]["volume"].IsInt()) {
                     volume = document["audio"]["volume"].GetInt();
-                    
+
                     if (volume < 0) volume = 0;
                     if (volume > 100) volume = 100;
-                    
+
                     if (volumeSlider) {
                         volumeSlider->setValue(volume);
                         volumeLabel->setText(QString("Volume: %1%").arg(volume));
@@ -714,6 +692,122 @@ void MainWindow::loadVolumeSettings() {
     catch (const std::exception& e) {
     }
 }
+
+
+#ifndef _WIN32
+namespace {
+    std::string launcherConfigPath() {
+        return (fs::path(QCoreApplication::applicationDirPath().toStdString()) / "launcher-config.json").string();
+    }
+}
+
+void MainWindow::updatePrefixLabel() {
+    if (!prefixButton) return;
+
+    const auto settings = linuxlaunch::loadSettings(launcherConfigPath());
+
+    if (settings.prefixPath.empty()) {
+        prefixButton->setText("Prefix...");
+        prefixButton->setToolTip("No wine prefix selected yet");
+        return;
+    }
+
+    std::string name = fs::path(settings.prefixPath).filename().string();
+    if (name.empty()) name = settings.prefixPath;
+
+    if (name.size() > 16) {
+        name = name.substr(0, 15) + "...";
+    }
+
+    prefixButton->setText(QString::fromStdString(name));
+    prefixButton->setToolTip(QString::fromStdString(settings.prefixPath));
+}
+
+void MainWindow::refreshRuntimeCombo() {
+    if (!runtimeCombo) return;
+
+    const auto settings = linuxlaunch::loadSettings(launcherConfigPath());
+    const auto runtimes = linuxlaunch::detectRuntimes();
+
+    runtimeCombo->blockSignals(true);
+    runtimeCombo->clear();
+
+    for (const auto& runtime : runtimes) {
+        runtimeCombo->addItem(QString::fromStdString(runtime.name), QString::fromStdString(runtime.path));
+        runtimeCombo->setItemData(runtimeCombo->count() - 1,
+                                  QString::fromStdString(runtime.kind), Qt::UserRole + 1);
+    }
+
+    int index = runtimeCombo->findData(QString::fromStdString(settings.runtimePath));
+    if (index < 0 && runtimes.size() > 0) index = 0;
+
+    if (index >= 0) {
+        runtimeCombo->setCurrentIndex(index);
+    }
+
+    if (runtimes.empty()) {
+        runtimeCombo->addItem("No Proton found");
+        runtimeCombo->setToolTip("No Proton or Wine build was detected. Pick one with the Prefix button.");
+    }
+
+    runtimeCombo->blockSignals(false);
+
+    updatePrefixLabel();
+}
+
+void MainWindow::onRuntimeChanged(int index) {
+    if (index < 0 || !runtimeCombo) return;
+
+    const QString path = runtimeCombo->itemData(index).toString();
+    const QString kind = runtimeCombo->itemData(index, Qt::UserRole + 1).toString();
+    if (path.isEmpty()) return;
+
+    auto settings = linuxlaunch::loadSettings(launcherConfigPath());
+    settings.runtimePath = path.toStdString();
+    settings.backend = (kind == "wine") ? "wine" : "umu";
+    linuxlaunch::saveSettings(launcherConfigPath(), settings);
+}
+
+void MainWindow::choosePrefix() {
+    auto settings = linuxlaunch::loadSettings(launcherConfigPath());
+
+    QString start = QString::fromStdString(settings.prefixPath);
+    if (start.isEmpty()) {
+        const char* home = std::getenv("HOME");
+        start = home ? QString::fromStdString(std::string(home)) : QString();
+    }
+
+    const QString chosen = QFileDialog::getExistingDirectory(this, "Choose a Wine prefix folder", start);
+    if (chosen.isEmpty()) return;
+
+    const std::string path = chosen.toStdString();
+
+    if (!linuxlaunch::isPrefix(path)) {
+        // Nothing usable in there: either it is empty or a plain folder
+        const auto answer = QMessageBox::question(this, "Create a prefix",
+            QString("No wine prefix found in:\n%1\n\nCreate one there?")
+                .arg(QString::fromStdString(path)),
+            QMessageBox::Yes | QMessageBox::No);
+
+        if (answer != QMessageBox::Yes) return;
+
+        QApplication::setOverrideCursor(Qt::WaitCursor);
+        std::string error;
+        const bool created = linuxlaunch::createPrefix(settings, &error);
+        QApplication::restoreOverrideCursor();
+
+        if (!created) {
+            showMessageBox(QMessageBox::Critical, "Error",
+                           QString::fromStdString(error.empty() ? "Prefix creation failed" : error));
+            return;
+        }
+    }
+
+    settings.prefixPath = path;
+    linuxlaunch::saveSettings(launcherConfigPath(), settings);
+    updatePrefixLabel();
+}
+#endif
 
 bool MainWindow::copyLPCFolder() {
 

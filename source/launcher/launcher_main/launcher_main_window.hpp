@@ -2,8 +2,6 @@
 
 #include "std_include.hpp"
 #include <string>
-#include <Windows.h>
-#pragma comment(lib, "winmm.lib")
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -20,6 +18,10 @@ private slots:
     void openDocs();
     void updateVolume(int value);
     void openSettings();
+#ifndef _WIN32
+    void onRuntimeChanged(int index);
+    void choosePrefix();
+#endif
 
 private:
 
@@ -30,7 +32,11 @@ private:
     void loadCloseLauncheronPlay();
     void saveVolumeSettings();
     void loadVolumeSettings();
-    
+#ifndef _WIN32
+    void refreshRuntimeCombo();
+    void updatePrefixLabel();
+#endif
+
     std::wstring launcherDir;
     std::wstring serverIpFile;
     bool reshadeEnabled;
@@ -52,4 +58,10 @@ private:
     QLabel* volumeLabel;
     QSlider* volumeSlider;
     QProgressBar* progressBar;
+
+#ifndef _WIN32
+    QComboBox* runtimeCombo;
+    QPushButton* prefixButton;
+    QLabel* runtimeLabel;
+#endif
 };
