@@ -18,10 +18,10 @@ private slots:
     void openDocs();
     void updateVolume(int value);
     void openSettings();
-#ifndef _WIN32
+    // Linux only in practice, declared unconditionally so moc generates the
+    // same metacall table on every platform
     void onRuntimeChanged(int index);
     void choosePrefix();
-#endif
 
 private:
 

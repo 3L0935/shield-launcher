@@ -807,6 +807,10 @@ void MainWindow::choosePrefix() {
     linuxlaunch::saveSettings(launcherConfigPath(), settings);
     updatePrefixLabel();
 }
+#else
+// Declared for the moc table on every platform, unused on Windows.
+void MainWindow::onRuntimeChanged(int /*index*/) {}
+void MainWindow::choosePrefix() {}
 #endif
 
 bool MainWindow::copyLPCFolder() {

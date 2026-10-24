@@ -184,6 +184,12 @@ project "launcher"
             "/usr/include/qt6/QtGui",
             "/usr/include/qt6/QtWidgets",
             "/usr/include/qt6/QtMultimedia",
+            "/usr/include/x86_64-linux-gnu/qt6",
+            "/usr/include/x86_64-linux-gnu/qt6/QtCore",
+            "/usr/include/x86_64-linux-gnu/qt6/QtGui",
+            "/usr/include/x86_64-linux-gnu/qt6/QtWidgets",
+            "/usr/include/x86_64-linux-gnu/qt6/QtNetwork",
+            "/usr/include/x86_64-linux-gnu/qt6/QtMultimedia",
         }
         links { "Qt6Core", "Qt6Gui", "Qt6Widgets", "Qt6Multimedia" }
     filter {}
