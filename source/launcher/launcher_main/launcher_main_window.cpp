@@ -104,7 +104,12 @@ progressBar(nullptr)
     backgroundLabel->move(0, 0);
 
     //background image relative to exe location
+    // the packaged artwork is a png or a jpg depending on the release
     fs::path imagePath = fs::path(launcherDir) / "images" / "launcher.png";
+    if (!fs::exists(imagePath)) {
+        imagePath = fs::path(launcherDir) / "images" / "launcher.jpg";
+    }
+
     if (fs::exists(imagePath)) {
         QPixmap background(QString::fromStdString(imagePath.string()));
         if (!background.isNull()) {
