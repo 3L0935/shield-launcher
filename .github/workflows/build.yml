@@ -79,8 +79,14 @@ jobs:
         run: |
           mkdir -p dist
           cp build/bin/x64/Release/Shield_Launcher dist/
-          cp -r source/launcher/images dist/images 2>/dev/null || true
-          tar -czf dist/Project_BO4_Launcher_Linux.tar.gz -C dist Shield_Launcher images
+
+          # the images shipped with the launcher archive
+          if [ -d project-bo4/Latest-Release-Files/project-bo4/launcher/images ]; then
+            cp -r project-bo4/Latest-Release-Files/project-bo4/launcher/images dist/images
+            tar -czf dist/Project_BO4_Launcher_Linux.tar.gz -C dist Shield_Launcher images
+          else
+            tar -czf dist/Project_BO4_Launcher_Linux.tar.gz -C dist Shield_Launcher
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
