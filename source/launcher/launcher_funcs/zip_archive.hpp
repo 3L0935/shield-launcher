@@ -25,4 +25,8 @@ namespace zip {
     bool extractEntry(const std::string& zipPath, const Entry& entry, const std::string& destPath);
 
     bool extractEntry(const std::string& zipPath, const std::string& entryName, const std::string& destPath);
+
+    // Extracts every regular entry below destDir, keeping the archive layout.
+    // Entries pointing outside destDir ("..", absolute paths) are rejected.
+    bool extractAll(const std::string& zipPath, const std::string& destDir);
 }

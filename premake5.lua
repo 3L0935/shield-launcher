@@ -46,7 +46,7 @@ dependencies.load()
 --   premake5 gmake2   -> Linux (system Qt6, GCC/Clang)
 local is_linux = os.target() == "linux"
 
--- Define the main project 
+-- Define the main project
 
 workspace "Shield_launcher"
 
@@ -122,7 +122,7 @@ workspace "Shield_launcher"
 		defines { "_DEBUG" }
 	filter {}
 
-	
+
 -- Define the utlis project
 project "utilities"
 	kind "StaticLib"
@@ -139,8 +139,8 @@ project "utilities"
 	filter {}
 
 	dependencies.imports()
-	
-	
+
+
 -- Define the server project
 project "launcher"
     kind "WindowedApp"
@@ -150,16 +150,16 @@ project "launcher"
 
     pchheader "std_include.hpp"
     pchsource "source/launcher/std_include.cpp"
-    
+
     includedirs
     {
         "source/launcher",
-        "source/utilities", 
+        "source/utilities",
 	    "build/src/", -- for pre generated qt moc files [NEEDED]
         "%{prj.location}/source"
     }
 
-    files 
+    files
     {
         "./source/launcher/resources.rc",
         "./source/launcher/**.hpp",
@@ -183,6 +183,7 @@ project "launcher"
             "/usr/include/qt6/QtCore",
             "/usr/include/qt6/QtGui",
             "/usr/include/qt6/QtWidgets",
+            "/usr/include/qt6/QtNetwork",
             "/usr/include/qt6/QtMultimedia",
             "/usr/include/x86_64-linux-gnu/qt6",
             "/usr/include/x86_64-linux-gnu/qt6/QtCore",
@@ -191,15 +192,15 @@ project "launcher"
             "/usr/include/x86_64-linux-gnu/qt6/QtNetwork",
             "/usr/include/x86_64-linux-gnu/qt6/QtMultimedia",
         }
-        links { "Qt6Core", "Qt6Gui", "Qt6Widgets", "Qt6Multimedia" }
+        links { "Qt6Core", "Qt6Gui", "Qt6Widgets", "Qt6Network", "Qt6Multimedia" }
     filter {}
 
     links {
         "utilities",  -- Links with utilities
     }
-	
+
     postbuildcommands {
- 
+
     }
 
     -- Apply precompiled headers to moc files
@@ -209,11 +210,11 @@ project "launcher"
     -- pchsource "src/launcher/std_include.cpp"
 
     filter {}
-	
-	
+
+
 	qt6.run_moc()  -- Func to run moc NEEDED this builds the moc file (moc is in qt.lua)
 
-	
+
     dependencies.imports()
 
 group "Dependencies"
@@ -227,29 +228,29 @@ project "launcher_shortcut"
     language "C++"
     targetname "Launch Project BO4"
     cppdialect "C++20"
-    
-    files 
+
+    files
     {
         "./source/launcher_shortcut/**.cpp",
         "./source/launcher_shortcut/**.rc",
         "./source/launcher_shortcut/**.ico"
     }
-    
+
     includedirs
     {
         "source/launcher_shortcut"
     }
-    
+
     -- Copy the shortcut executable to the root directory after build
     postbuildcommands {
         "{COPY} \"%{cfg.buildtarget.abspath}\" \"%{wks.location}/../../\""
     }
-    
+
     filter "configurations:Release"
         optimize "Size"
         defines {"NDEBUG"}
     filter {}
-    
+
     filter "configurations:Debug"
         defines {"_DEBUG"}
         symbols "On"

@@ -2,6 +2,7 @@
 #include "launcher_main_window.hpp"
 #include "style.hpp"
 #include "settings_dialog.hpp"
+#include "mods_dialog.hpp"
 #include "window_utils.hpp"
 #include "utils.hpp"
 #include "../launcher_funcs/dll_loading.hpp"
@@ -80,6 +81,7 @@ nameButton(nullptr),
 ipButton(nullptr),
 discordButton(nullptr),
 wikiButton(nullptr),
+modsButton(nullptr),
 settingsButton(nullptr),
 closeLauncherCheckbox(nullptr),
 reshadeCheckbox(nullptr),
@@ -152,6 +154,10 @@ progressBar(nullptr)
     wikiButton = new QPushButton("Shield Docs", this);
     wikiButton->setStyleSheet("background-color: rgba(85, 85, 85, 180); color: white; border: none; padding: 5px;");
     topRowLayout->addWidget(wikiButton);
+
+    modsButton = new QPushButton("Mods", this);
+    modsButton->setStyleSheet("background-color: rgba(85, 85, 85, 180); color: white; border: none; padding: 5px;");
+    topRowLayout->addWidget(modsButton);
 
     discordButton = new QPushButton("Discord", this);
     discordButton->setStyleSheet("background-color: rgba(85, 85, 85, 180); color: white; border: none; padding: 5px;");
@@ -283,6 +289,7 @@ progressBar(nullptr)
     connect(ipButton, &QPushButton::clicked, this, &MainWindow::setIp);
     connect(discordButton, &QPushButton::clicked, this, &MainWindow::openDiscord);
     connect(wikiButton, &QPushButton::clicked, this, &MainWindow::openDocs);
+    connect(modsButton, &QPushButton::clicked, this, &MainWindow::openMods);
     connect(volumeSlider, &QSlider::valueChanged, this, &MainWindow::updateVolume);
     connect(settingsButton, &QPushButton::clicked, this, &MainWindow::openSettings);
     connect(closeLauncherCheckbox, &QCheckBox::stateChanged, this, [this](int state) {
@@ -546,6 +553,13 @@ void MainWindow::setIp() {
 void MainWindow::openDiscord() {
 
     QDesktopServices::openUrl(QUrl("https://discord.gg/AXECAzJJGU"));
+}
+
+void MainWindow::openMods() {
+    const fs::path gameDir = fs::path(launcherDir).parent_path().parent_path();
+
+    ModsDialog dialog(gameDir.string(), this);
+    dialog.exec();
 }
 
 void MainWindow::openDocs() {

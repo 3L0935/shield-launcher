@@ -52,6 +52,85 @@ namespace {
     }
 }
 
+namespace {
+    bool readEntryData(std::ifstream& file, const zip::Entry& entry, std::vector<unsigned char>& data) {
+        // Local header: 30 bytes then the file name and extra field
+        file.seekg(entry.localHeaderOffset);
+        unsigned char header[30];
+        file.read(reinterpret_cast<char*>(header), sizeof(header));
+        if (file.gcount() != static_cast<std::streamsize>(sizeof(header))) {
+            return false;
+        }
+
+        if (!(header[0] == 0x50 && header[1] == 0x4b && header[2] == 0x03 && header[3] == 0x04)) {
+            return false;
+        }
+
+        const uint16_t nameLen = readU16(header + 26);
+        const uint16_t extraLen = readU16(header + 28);
+        file.seekg(static_cast<std::streamoff>(nameLen) + extraLen, std::ios::cur);
+
+        std::vector<unsigned char> compressed(entry.compressedSize);
+        if (entry.compressedSize > 0) {
+            file.read(reinterpret_cast<char*>(compressed.data()), static_cast<std::streamsize>(compressed.size()));
+            if (file.gcount() != static_cast<std::streamsize>(compressed.size())) {
+                return false;
+            }
+        }
+
+        if (entry.method == 0) {
+            data = std::move(compressed);
+        } else if (entry.method == 8) {
+            data.resize(entry.uncompressedSize);
+            z_stream stream{};
+            if (inflateInit2(&stream, -MAX_WBITS) != Z_OK) {
+                return false;
+            }
+
+            stream.next_in = compressed.data();
+            stream.avail_in = static_cast<uInt>(compressed.size());
+            stream.next_out = data.data();
+            stream.avail_out = static_cast<uInt>(data.size());
+
+            const int result = inflate(&stream, Z_FINISH);
+            inflateEnd(&stream);
+
+            if (result != Z_STREAM_END) {
+                return false;
+            }
+
+            data.resize(stream.total_out);
+        } else {
+            return false;
+        }
+
+        const uLong crc = crc32(crc32(0L, Z_NULL, 0), data.data(), static_cast<uInt>(data.size()));
+        return static_cast<uint32_t>(crc) == entry.crc32;
+    }
+
+    bool writeFile(const std::string& path, const std::vector<unsigned char>& data) {
+        try {
+            fs::path destination(path);
+            if (destination.has_parent_path()) {
+                fs::create_directories(destination.parent_path());
+            }
+
+            std::ofstream output(path, std::ios::binary | std::ios::trunc);
+            if (!output) {
+                return false;
+            }
+
+            if (!data.empty()) {
+                output.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
+            }
+
+            return output.good();
+        } catch (const std::exception&) {
+            return false;
+        }
+    }
+}
+
 namespace zip {
     bool list(const std::string& zipPath, std::vector<Entry>& out) {
         out.clear();
@@ -130,85 +209,12 @@ namespace zip {
             return false;
         }
 
-        // Local header: 30 bytes then the file name and extra field
-        file.seekg(entry.localHeaderOffset);
-        unsigned char header[30];
-        file.read(reinterpret_cast<char*>(header), sizeof(header));
-        if (file.gcount() != static_cast<std::streamsize>(sizeof(header))) {
-            return false;
-        }
-
-        if (!(header[0] == 0x50 && header[1] == 0x4b && header[2] == 0x03 && header[3] == 0x04)) {
-            return false;
-        }
-
-        const uint16_t nameLen = readU16(header + 26);
-        const uint16_t extraLen = readU16(header + 28);
-        file.seekg(static_cast<std::streamoff>(nameLen) + extraLen, std::ios::cur);
-
-        std::vector<unsigned char> compressed(entry.compressedSize);
-        if (entry.compressedSize > 0) {
-            file.read(reinterpret_cast<char*>(compressed.data()), static_cast<std::streamsize>(compressed.size()));
-            if (file.gcount() != static_cast<std::streamsize>(compressed.size())) {
-                return false;
-            }
-        }
-
         std::vector<unsigned char> data;
-        if (entry.method == 0) {
-            // stored
-            data = std::move(compressed);
-        } else if (entry.method == 8) {
-            // deflated, raw stream (no zlib header)
-            data.resize(entry.uncompressedSize);
-            z_stream stream{};
-            if (inflateInit2(&stream, -MAX_WBITS) != Z_OK) {
-                return false;
-            }
-
-            stream.next_in = compressed.data();
-            stream.avail_in = static_cast<uInt>(compressed.size());
-            stream.next_out = data.data();
-            stream.avail_out = static_cast<uInt>(data.size());
-
-            const int result = inflate(&stream, Z_FINISH);
-            inflateEnd(&stream);
-
-            if (result != Z_STREAM_END) {
-                return false;
-            }
-
-            data.resize(stream.total_out);
-        } else {
-            // unsupported compression method
+        if (!readEntryData(file, entry, data)) {
             return false;
         }
 
-        // integrity check against the central directory
-        const uLong crc = crc32(crc32(0L, Z_NULL, 0), data.data(), static_cast<uInt>(data.size()));
-        if (static_cast<uint32_t>(crc) != entry.crc32) {
-            return false;
-        }
-
-        try {
-            fs::path destination(destPath);
-            if (destination.has_parent_path()) {
-                fs::create_directories(destination.parent_path());
-            }
-
-            std::ofstream output(destPath, std::ios::binary | std::ios::trunc);
-            if (!output) {
-                return false;
-            }
-
-            if (!data.empty()) {
-                output.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
-            }
-
-            return output.good();
-        } catch (const std::exception&) {
-            return false;
-        }
+        return writeFile(destPath, data);
     }
 
     bool extractEntry(const std::string& zipPath, const std::string& entryName, const std::string& destPath) {
@@ -218,5 +224,47 @@ namespace zip {
         }
 
         return extractEntry(zipPath, entry, destPath);
+    }
+
+    bool extractAll(const std::string& zipPath, const std::string& destDir) {
+        std::vector<Entry> entries;
+        if (!list(zipPath, entries)) {
+            return false;
+        }
+
+        std::ifstream file(zipPath, std::ios::binary);
+        if (!file) {
+            return false;
+        }
+
+        bool ok = true;
+
+        for (const auto& entry : entries) {
+            // directory entries end with a slash and carry no data
+            if (!entry.name.empty() && entry.name.back() == '/') {
+                continue;
+            }
+
+            // never let an archive escape the destination directory
+            if (entry.name.find("..") != std::string::npos ||
+                entry.name.find(':') != std::string::npos ||
+                (!entry.name.empty() && (entry.name[0] == '/' || entry.name[0] == '\\'))) {
+                ok = false;
+                continue;
+            }
+
+            std::vector<unsigned char> data;
+            if (!readEntryData(file, entry, data)) {
+                ok = false;
+                continue;
+            }
+
+            const fs::path destination = fs::path(destDir) / entry.name;
+            if (!writeFile(destination.string(), data)) {
+                ok = false;
+            }
+        }
+
+        return ok;
     }
 }

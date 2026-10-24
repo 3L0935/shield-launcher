@@ -10,7 +10,8 @@ function qt6.run_moc() -- func for qt moc headers needing moc processing with th
 
     local headers = {
         "source/launcher/launcher_main/launcher_main_window.hpp",
-        "source/launcher/launcher_main/settings_dialog.hpp"
+        "source/launcher/launcher_main/settings_dialog.hpp",
+        "source/launcher/launcher_main/mods_dialog.hpp"
 
         -- Add moc headers as needed if u make a new file that requires QT
     }
@@ -98,11 +99,19 @@ function qt6.includes()
     end
 
     includedirs {
+<<<<<<< HEAD
         qt6.includePath,                         
         path.join(qt6.includePath, "QtCore"),    
         path.join(qt6.includePath, "QtGui"),     
         path.join(qt6.includePath, "QtWidgets"), 
 	path.join(qt6.includePath, "QtNetwork"), 
+=======
+        qt6.includePath,
+        path.join(qt6.includePath, "QtCore"),
+        path.join(qt6.includePath, "QtGui"),
+        path.join(qt6.includePath, "QtWidgets"),
+	path.join(qt6.includePath, "QtNNetwork"),
+>>>>>>> e1c9a62 (mods: manage the Shield mods from the launcher)
     }
 end
 
@@ -126,7 +135,7 @@ function qt6.links()
             "Qt6Cored.lib",    -- Core Debug library
             "Qt6Guid.lib",     -- GUI Debug library
             "Qt6Widgetsd.lib", -- Widgets Debug library
-            "Qt6Networkd.lib", -- Widgets Debug library      
+            "Qt6Networkd.lib", -- Widgets Debug library
 
         }
 
@@ -141,24 +150,24 @@ function qt6.links()
         }
 
     filter "system:windows"
-        links { 
-            "Winmm",   
-            "Ws2_32",  
-            "Imm32",   
-            "Dwmapi"   
+        links {
+            "Winmm",
+            "Ws2_32",
+            "Imm32",
+            "Dwmapi"
         }
-        
+
     filter "system:linux"
         links {
-            "pthread", 
-            "dl",      
-            "z"       
+            "pthread",
+            "dl",
+            "z"
         }
 
-    filter {}  
+    filter {}
 end
 
---func to copy to build folder 
+--func to copy to build folder
 function qt6.copyDlls()
 
     if os.target() == "linux" then
@@ -172,7 +181,7 @@ function qt6.copyDlls()
     local batchFileName = "copy_qt_dlls.bat"
     local batchDir = path.join(os.getcwd(), "build")
     local batchFilePath = path.join(batchDir, batchFileName)
-    
+
     local batchFileCommands = {}
     table.insert(batchFileCommands, "@echo off")
     table.insert(batchFileCommands, "echo Copying Qt DLLs...")
@@ -193,7 +202,7 @@ function qt6.copyDlls()
     table.insert(batchFileCommands, 'set "PlatformsSource=%~dp0\\..\\' .. path.getrelative(batchDir, platformsDir) .. '"')
     table.insert(batchFileCommands, 'set "PlatformsTarget=%TargetDir%\\platforms"')
     table.insert(batchFileCommands, 'if not exist "%PlatformsTarget%" mkdir "%PlatformsTarget%"')
-    
+
     table.insert(batchFileCommands, 'for %%f in ("%PlatformsSource%\\*.dll") do (')
     table.insert(batchFileCommands, '    echo Copying "%%f" to "%PlatformsTarget%"')
     table.insert(batchFileCommands, '    copy /Y "%%f" "%PlatformsTarget%"')
