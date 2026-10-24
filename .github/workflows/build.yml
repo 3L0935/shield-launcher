@@ -52,9 +52,10 @@ jobs:
           }
 
           # resources the launcher loads at runtime
-          Copy-Item "source/launcher/icon.ico" "$out/images/icon.ico" -ErrorAction SilentlyContinue
-          if (Test-Path "project-bo4/Latest-Release-Files/project-bo4/launcher/images") {
-            Copy-Item "project-bo4/Latest-Release-Files/project-bo4/launcher/images/*" "$out/images" -ErrorAction SilentlyContinue
+          $images = "project-bo4/Latest-Release-Files/project-bo4/launcher/images"
+          if (Test-Path $images) {
+            New-Item -ItemType Directory -Force -Path "$out/images" | Out-Null
+            Copy-Item "$images/*" "$out/images" -Recurse -ErrorAction SilentlyContinue
           }
 
           Compress-Archive -Path "$out/*" -DestinationPath dist/Project_BO4_Launcher_Windows.zip
