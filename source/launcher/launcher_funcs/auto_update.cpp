@@ -249,7 +249,21 @@ namespace updater {
         std::string currentExe = std::string(exePath);
         std::string exeDir = currentExe.substr(0, currentExe.find_last_of("\\"));
         std::string exeName = currentExe.substr(currentExe.find_last_of("\\") + 1);
-        std::string projectDir = exeDir.substr(0, exeDir.find_last_of("\\"));  // Get parent directory (project-bo4)
+        // The launcher lives either in <game>/project-bo4/launcher (old layout)
+        // or directly in the game folder (release layout with the exe at the
+        // root). Resolve project-bo4 in both cases instead of assuming a level.
+        std::string projectDir;
+        {
+            const std::filesystem::path exeDirectory(exeDir);
+            if (exeDirectory.filename() == "launcher" &&
+                exeDirectory.parent_path().filename() == "project-bo4") {
+                projectDir = exeDirectory.parent_path().string();
+            } else if (std::filesystem::exists(exeDirectory / "project-bo4")) {
+                projectDir = (exeDirectory / "project-bo4").string();
+            } else {
+                projectDir = exeDirectory.parent_path().string();
+            }
+        }
         std::string updateBatchPath = updateDir + "\\update.bat";
 
         logger::write(logger::LOG_LEVEL_DEBUG, logger::LOG_LABEL_INITIALIZER, "Current exe: %s", currentExe.c_str());

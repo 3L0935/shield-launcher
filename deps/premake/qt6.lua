@@ -102,7 +102,7 @@ function qt6.includes()
         path.join(qt6.includePath, "QtCore"),    
         path.join(qt6.includePath, "QtGui"),     
         path.join(qt6.includePath, "QtWidgets"), 
-	path.join(qt6.includePath, "QtNNetwork"), 
+	path.join(qt6.includePath, "QtNetwork"), 
     }
 end
 

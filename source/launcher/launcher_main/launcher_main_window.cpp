@@ -25,6 +25,10 @@ namespace {
     }
 
     fs::path resolveLauncherDir() {
+#ifdef _WIN32
+        // native wide path: an ANSI conversion breaks install paths with accents
+        fs::path exePath(QCoreApplication::applicationFilePath().toStdWString());
+#else
         // /proc/self/exe is the resolved target, so a shortcut symlinked from
         // the game folder still points at the real launcher directory
         fs::path exePath;
@@ -35,6 +39,7 @@ namespace {
         } else {
             exePath = QCoreApplication::applicationFilePath().toStdString();
         }
+#endif
 
         const fs::path base = exePath.parent_path();
         if (looksLikeLauncherDir(base)) {

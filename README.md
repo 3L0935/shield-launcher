@@ -1,35 +1,42 @@
 # Launcher for Shield/Project-BO4 Client
 ## Installation
-- #### [Download](https://github.com/NotNierPea/shield-launcher/releases/tag/Release), then extract it in the ``"Call of Duty Black Ops 4"`` directory (wherever you installed the game)
-- #### Then you can run the ``"Launch Project BO4.exe"``, Click offline or online to launch the game.
 
-## Linux
-The launcher is cross-platform: the same sources build for Windows and Linux.
+1. Download the release for your platform:
+   - **Windows**: `Project_BO4_Launcher_Windows.zip`
+   - **Linux**: `Project_BO4_Launcher_Linux.tar.gz`
+2. Extract the archive somewhere.
+3. Drag what is inside the folder into your `Call of Duty Black Ops 4` directory
+   (the one with `BlackOps4.exe`):
+   - `Shield_Launcher.exe` on Windows (+ its Qt DLLs and `platforms/`), or
+     `Shield_Launcher` on Linux, at the game root
+   - the `project-bo4` folder next to it (resources the launcher loads)
+4. Start `Shield_Launcher` and pick Offline or Online.
 
-```
-premake5 vs2022     # Windows, MSVC, vendored Qt6 from deps/qt6
-premake5 gmake      # Linux, system Qt6
-```
+That is the whole install: the launcher ends up at the game root, its resources
+under `project-bo4/launcher`, and it finds them on its own.
 
-On Linux, use the helper script:
+### Linux
+
+The game runs through Proton or Wine. The launcher lists the Proton/Wine builds
+it finds in Steam, `compatibilitytools.d`, Heroic and umu, and a `Prefix...`
+button lets you pick the wine prefix:
+- pick a folder that already is a prefix (one holding Battle.net is proposed
+  automatically) and it is used as is
+- pick an empty folder and the prefix is created there
+
+Requirements: a C++20 compiler, Qt6 base/widgets/multimedia development packages,
+premake5 to build, and [umu-launcher](https://github.com/Open-Wine-Components/umu-launcher)
+(`umu-run`) to run the game with any Proton build, GE-Proton included.
+
+Build it yourself:
 
 ```sh
 ./build-linux.sh            # release
 ./build-linux.sh debug      # debug
+# or, by hand:
+premake5 gmake              # Linux, system Qt6
+premake5 vs2022             # Windows, MSVC, vendored Qt6 from deps/qt6
 ```
-
-Put the resulting `Shield_Launcher` binary in `project-bo4/launcher/`, next to
-`solo.zip`, `mp.zip` and `exe.zip`, then start it directly.
-
-The game runs through Proton or Wine. The launcher shows a runtime list built
-from Steam, `compatibilitytools.d`, Heroic and umu, and a `Prefix...` button:
-pick an existing prefix and it is used, pick an empty folder and the prefix is
-created there.
-
-Requirements: a C++20 compiler, Qt6 base/widgets/multimedia development
-packages, premake5. Proton launching uses [umu-launcher](https://github.com/Open-Wine-Components/umu-launcher)
-(`umu-run`), which works with any Proton build including GE-Proton.
-
 
 ## Info
 - #### The launcher was not developed by me, i just maintain it and improve it.
