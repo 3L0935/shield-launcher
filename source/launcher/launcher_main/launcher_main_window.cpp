@@ -3,6 +3,7 @@
 #include "style.hpp"
 #include "settings_dialog.hpp"
 #include "mods_dialog.hpp"
+#include "server_dialog.hpp"
 #include "window_utils.hpp"
 #include "utils.hpp"
 #include "../launcher_funcs/dll_loading.hpp"
@@ -82,6 +83,7 @@ ipButton(nullptr),
 discordButton(nullptr),
 wikiButton(nullptr),
 modsButton(nullptr),
+serverButton(nullptr),
 settingsButton(nullptr),
 closeLauncherCheckbox(nullptr),
 reshadeCheckbox(nullptr),
@@ -158,6 +160,10 @@ progressBar(nullptr)
     modsButton = new QPushButton("Mods", this);
     modsButton->setStyleSheet("background-color: rgba(85, 85, 85, 180); color: white; border: none; padding: 5px;");
     topRowLayout->addWidget(modsButton);
+
+    serverButton = new QPushButton("Server", this);
+    serverButton->setStyleSheet("background-color: rgba(85, 85, 85, 180); color: white; border: none; padding: 5px;");
+    topRowLayout->addWidget(serverButton);
 
     discordButton = new QPushButton("Discord", this);
     discordButton->setStyleSheet("background-color: rgba(85, 85, 85, 180); color: white; border: none; padding: 5px;");
@@ -290,6 +296,7 @@ progressBar(nullptr)
     connect(discordButton, &QPushButton::clicked, this, &MainWindow::openDiscord);
     connect(wikiButton, &QPushButton::clicked, this, &MainWindow::openDocs);
     connect(modsButton, &QPushButton::clicked, this, &MainWindow::openMods);
+    connect(serverButton, &QPushButton::clicked, this, &MainWindow::openServerWizard);
     connect(volumeSlider, &QSlider::valueChanged, this, &MainWindow::updateVolume);
     connect(settingsButton, &QPushButton::clicked, this, &MainWindow::openSettings);
     connect(closeLauncherCheckbox, &QCheckBox::stateChanged, this, [this](int state) {
@@ -559,6 +566,13 @@ void MainWindow::openMods() {
     const fs::path gameDir = fs::path(launcherDir).parent_path().parent_path();
 
     ModsDialog dialog(gameDir.string(), this);
+    dialog.exec();
+}
+
+void MainWindow::openServerWizard() {
+    const fs::path gameDir = fs::path(launcherDir).parent_path().parent_path();
+
+    ServerDialog dialog(gameDir.string(), this);
     dialog.exec();
 }
 

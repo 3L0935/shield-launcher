@@ -11,7 +11,8 @@ function qt6.run_moc() -- func for qt moc headers needing moc processing with th
     local headers = {
         "source/launcher/launcher_main/launcher_main_window.hpp",
         "source/launcher/launcher_main/settings_dialog.hpp",
-        "source/launcher/launcher_main/mods_dialog.hpp"
+        "source/launcher/launcher_main/mods_dialog.hpp",
+        "source/launcher/launcher_main/server_dialog.hpp"
 
         -- Add moc headers as needed if u make a new file that requires QT
     }

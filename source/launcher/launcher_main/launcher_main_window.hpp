@@ -16,6 +16,7 @@ private slots:
     void setIp();
     void openDiscord();
     void openMods();
+    void openServerWizard();
     void openDocs();
     void updateVolume(int value);
     void openSettings();
@@ -54,6 +55,7 @@ private:
     QPushButton* discordButton;
     QPushButton* wikiButton;
     QPushButton* modsButton;
+    QPushButton* serverButton;
     QPushButton* settingsButton;
     QCheckBox* closeLauncherCheckbox;
     QCheckBox* reshadeCheckbox;
