@@ -36,9 +36,19 @@ jobs:
           # launcher binary and the Qt runtime the build copies next to it
           $release = "build/bin/x64/Release"
           Copy-Item "$release/Shield_Launcher.exe" $out
-          Copy-Item "$release/*.dll" $out -ErrorAction SilentlyContinue
+
+          # release Qt runtime only: copyDlls deploys the debug pair as well
+          Get-ChildItem "$release/*.dll" -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -notmatch 'd\.dll$' } |
+            Copy-Item -Destination $out
+
           if (Test-Path "$release/platforms") {
-            Copy-Item "$release/platforms" $out -Recurse
+            Get-ChildItem "$release/platforms/*.dll" -ErrorAction SilentlyContinue |
+              Where-Object { $_.Name -notmatch 'd\.dll$' } |
+              ForEach-Object {
+                New-Item -ItemType Directory -Force -Path "$out/platforms" | Out-Null
+                Copy-Item $_.FullName "$out/platforms/"
+              }
           }
 
           # resources the launcher loads at runtime
