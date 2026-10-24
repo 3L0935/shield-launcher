@@ -1,3 +1,4 @@
+#include "std_include.hpp"
 #include "zip_archive.hpp"
 
 #include <algorithm>

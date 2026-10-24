@@ -26,7 +26,12 @@ else
     exit 1
 fi
 
-if ! command -v moc >/dev/null 2>&1 && [ ! -x /usr/lib/qt6/moc ] && [ ! -x /usr/lib64/qt6/moc ]; then
+moc_found=""
+for candidate in /usr/lib/qt6/moc /usr/lib64/qt6/moc /usr/lib/qt6/libexec/moc \
+                 /usr/lib/x86_64-linux-gnu/qt6/moc /usr/lib/x86_64-linux-gnu/qt6/libexec/moc; do
+    if [ -x "$candidate" ]; then moc_found="$candidate"; break; fi
+done
+if [ -z "$moc_found" ] && ! command -v moc >/dev/null 2>&1; then
     echo "error: Qt6 moc not found, install your distribution's qt6 tools package." >&2
     exit 1
 fi

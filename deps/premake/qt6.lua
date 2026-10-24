@@ -43,7 +43,13 @@ function qt6.run_moc() -- func for qt moc headers needing moc processing with th
             -- system Qt6: /usr/bin/moc is Qt5 on most distros, the Qt6 one
             -- lives in the Qt6 lib dir
             local moc_bin = "moc"
-            for _, candidate in ipairs({ "/usr/lib/qt6/moc", "/usr/lib64/qt6/moc", "/usr/lib/x86_64-linux-gnu/qt6/moc" }) do
+            for _, candidate in ipairs({
+                "/usr/lib/qt6/moc",
+                "/usr/lib64/qt6/moc",
+                "/usr/lib/qt6/libexec/moc",
+                "/usr/lib/x86_64-linux-gnu/qt6/moc",
+                "/usr/lib/x86_64-linux-gnu/qt6/libexec/moc",
+            }) do
                 if os.isfile(candidate) then
                     moc_bin = candidate
                     break
