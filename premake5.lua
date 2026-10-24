@@ -41,6 +41,11 @@ newoption {
 
 dependencies.load()
 
+-- The target platform is picked by the premake action itself:
+--   premake5 vs2022   -> Windows (MSVC, vendored Qt6 from deps/qt6)
+--   premake5 gmake2   -> Linux (system Qt6, GCC/Clang)
+local is_linux = os.target() == "linux"
+
 -- Define the main project 
 
 workspace "Shield_launcher"
@@ -57,14 +62,10 @@ workspace "Shield_launcher"
 
 	architecture "x86_64"
 	platforms "x64"
-	staticruntime "off"
-    runtime "Release"
 
-	systemversion "latest"
 	symbols "On"
 	editandcontinue "Off"
 	warnings "Extra"
-	characterset "ASCII"
 
 	if _OPTIONS["dev-build"] then
 		defines {"DEV_BUILD"}
@@ -74,23 +75,34 @@ workspace "Shield_launcher"
 		defines {"CI"}
 	end
 
-    incrementallink "Off"
-	minimalrebuild "Off"
-	multiprocessorcompile "On"
-	enable64bitchecks "Off"
+	-- legacy MSVC-only knobs, present in some premake forks but not in stock
+	-- premake5; call them only when the API exposes them
+	if incrementallink then incrementallink "Off" end
+	if minimalrebuild then minimalrebuild "Off" end
+	if multiprocessorcompile then multiprocessorcompile "On" end
+	if enable64bitchecks then enable64bitchecks "Off" end
 
-	filter "platforms:x64"
+	filter "system:windows"
 		defines {"_WINDOWS", "WIN32"}
+		staticruntime "off"
+		runtime "Release"
+		systemversion "latest"
+		characterset "ASCII"
 	filter {}
 
-	filter "configurations:Release"
+	filter "system:linux"
+		defines {"LINUX_PORT"}
+		buildoptions { "-fPIC", "-fno-omit-frame-pointer" }
+	filter {}
+
+	filter {"system:windows", "configurations:Release"}
 		optimize "Size"
 		buildoptions {"/GL", "/Zc:__cplusplus"}
 		linkoptions { "/IGNORE:4702", "/LTCG" }
 		defines {"NDEBUG"}
 	filter {}
 
-	filter "configurations:Debug"
+	filter {"system:windows", "configurations:Debug"}
 		--optimize "Debug"
 		--defines {"DEBUG", "_DEBUG"}
                 runtime "Debug"
@@ -99,7 +111,18 @@ workspace "Shield_launcher"
    	        symbols "On"
 	filter {}
 
-		
+	filter {"system:linux", "configurations:Release"}
+		optimize "Speed"
+		buildoptions { "-O2" }
+		defines {"NDEBUG"}
+	filter {}
+
+	filter {"system:linux", "configurations:Debug"}
+		optimize "Debug"
+		defines { "_DEBUG" }
+	filter {}
+
+	
 -- Define the utlis project
 project "utilities"
 	kind "StaticLib"
@@ -108,6 +131,12 @@ project "utilities"
 	files {"./source/utilities/**.hpp", "./source/utilities/**.cpp"}
 
 	includedirs {"./source/utilities", "%{prj.location}/source"}
+
+	-- nt.cpp / io.cpp / configuration.cpp are Win32 NT + registry helpers only
+	-- used by the Windows updater.
+	filter "system:linux"
+		removefiles {"./source/utilities/nt.cpp", "./source/utilities/io.cpp", "./source/utilities/configuration.cpp"}
+	filter {}
 
 	dependencies.imports()
 	
@@ -143,6 +172,22 @@ project "launcher"
         "build/src/**.cpp"
     }
 
+    -- Windows resource scripts and manifests have no meaning on Linux; the
+    -- Linux build uses the system Qt6 instead of the vendored Windows one.
+    filter "system:linux"
+        removefiles {"./source/launcher/resources.rc", "./source/launcher/**.manifest", "./source/launcher/**.ico"}
+        includedirs
+        {
+            path.getabsolute("build/src/server/gui/tabs"),
+            "/usr/include/qt6",
+            "/usr/include/qt6/QtCore",
+            "/usr/include/qt6/QtGui",
+            "/usr/include/qt6/QtWidgets",
+            "/usr/include/qt6/QtMultimedia",
+        }
+        links { "Qt6Core", "Qt6Gui", "Qt6Widgets", "Qt6Multimedia" }
+    filter {}
+
     links {
         "utilities",  -- Links with utilities
     }
@@ -168,7 +213,9 @@ project "launcher"
 group "Dependencies"
     dependencies.projects()
 
--- Define the launcher shortcut project
+-- Define the launcher shortcut project (Windows only: it is a tiny Win32 stub
+-- that launches Shield_Launcher.exe from the game folder)
+if not is_linux then
 project "launcher_shortcut"
     kind "WindowedApp"
     language "C++"
@@ -201,3 +248,4 @@ project "launcher_shortcut"
         defines {"_DEBUG"}
         symbols "On"
     filter {}
+end

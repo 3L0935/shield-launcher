@@ -32,6 +32,12 @@ function zlib.project()
 			"_CRT_SECURE_NO_DEPRECATE",
 		}
 
+		-- this vendored copy gets lseek() from MSVC's <io.h>; on POSIX the
+		-- gz* helpers need <unistd.h> pulled in explicitly
+		filter "system:linux"
+			buildoptions { "-include", "unistd.h" }
+		filter {}
+
 		warnings "Off"
 		kind "StaticLib"
 end

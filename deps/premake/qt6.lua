@@ -5,7 +5,9 @@ qt6 = {
 }
 
 function qt6.run_moc() -- func for qt moc headers needing moc processing with the correct path
-    
+
+    local is_linux = os.target() == "linux"
+
     local headers = {
         "source/launcher/launcher_main/launcher_main_window.hpp",
         "source/launcher/launcher_main/settings_dialog.hpp"
@@ -36,10 +38,31 @@ function qt6.run_moc() -- func for qt moc headers needing moc processing with th
         end
 
         -- moc command to generate the .cpp file with the precompiled header included
-        local moc_cmd = '"' .. path.getabsolute(path.join(qt6.binPath, "moc.exe")) .. '" ' ..
-                        '"' .. path.getabsolute(header) .. '" ' ..
-                        '-o "' .. output_cpp .. '" ' ..
-                        '-DMOC_PRECOMPILED_HEADER="std_include.hpp"'
+        local moc_cmd
+        if is_linux then
+            -- system Qt6: /usr/bin/moc is Qt5 on most distros, the Qt6 one
+            -- lives in the Qt6 lib dir
+            local moc_bin = "moc"
+            for _, candidate in ipairs({ "/usr/lib/qt6/moc", "/usr/lib64/qt6/moc", "/usr/lib/x86_64-linux-gnu/qt6/moc" }) do
+                if os.isfile(candidate) then
+                    moc_bin = candidate
+                    break
+                end
+            end
+
+            moc_cmd = '"' .. moc_bin .. '" ' ..
+                      '"' .. path.getabsolute(header) .. '" ' ..
+                      '-o "' .. output_cpp .. '" ' ..
+                      '-I source/launcher -I source/utilities ' ..
+                      '-I /usr/include/qt6 -I /usr/include/qt6/QtCore ' ..
+                      '-I /usr/include/qt6/QtGui -I /usr/include/qt6/QtWidgets ' ..
+                      '-I /usr/include/qt6/QtMultimedia'
+        else
+            moc_cmd = '"' .. path.getabsolute(path.join(qt6.binPath, "moc.exe")) .. '" ' ..
+                      '"' .. path.getabsolute(header) .. '" ' ..
+                      '-o "' .. output_cpp .. '" ' ..
+                      '-DMOC_PRECOMPILED_HEADER="std_include.hpp"'
+        end
 
         -- Print the moc command to verify it's correct
         print("Running moc command: " .. moc_cmd)
@@ -63,6 +86,11 @@ end
 
 -- Func to set Qt dirs
 function qt6.includes()
+    if os.target() == "linux" then
+        -- system Qt6, include paths are set by the project in premake5.lua
+        return
+    end
+
     includedirs {
         qt6.includePath,                         
         path.join(qt6.includePath, "QtCore"),    
@@ -74,6 +102,16 @@ end
 
 -- Func to link Qt
 function qt6.links()
+    if os.target() == "linux" then
+        -- system Qt6: the library names are set by the project, see premake5.lua
+        links {
+            "pthread",
+            "dl",
+            "z"
+        }
+        return
+    end
+
     libdirs { qt6.libPath }  -- Set library path for Qt6
 
     filter "configurations:Debug"
@@ -116,7 +154,12 @@ end
 
 --func to copy to build folder 
 function qt6.copyDlls()
-    
+
+    if os.target() == "linux" then
+        -- nothing to deploy: the Linux binary links the system Qt6
+        return
+    end
+
     local sourceDir = path.getrelative(os.getcwd(), qt6.binPath)
     local platformsDir = path.join(qt6.binPath, "platforms")  -- Path for platforms DLLs
 

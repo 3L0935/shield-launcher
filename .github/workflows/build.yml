@@ -1,0 +1,89 @@
+name: build
+
+on:
+  push:
+    branches: [main, linux-port]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    name: Windows (MSVC)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Fetch premake5
+        shell: pwsh
+        run: |
+          curl -L -o premake.zip https://github.com/premake/premake-core/releases/download/v5.0.0-beta7/premake-5.0.0-beta7-windows.zip
+          Expand-Archive premake.zip -DestinationPath tools -Force
+
+      - name: Generate solution
+        run: tools\premake5.exe vs2022
+
+      - name: Build
+        run: msbuild build\Shield_launcher.sln /m /p:Configuration=Release /p:Platform=x64
+
+      - name: Package launcher folder
+        shell: pwsh
+        run: |
+          $out = "dist/Project_BO4_Launcher_Windows"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+
+          # launcher binary and the Qt runtime the build copies next to it
+          $release = "build/bin/x64/Release"
+          Copy-Item "$release/Shield_Launcher.exe" $out
+          Copy-Item "$release/*.dll" $out -ErrorAction SilentlyContinue
+          if (Test-Path "$release/platforms") {
+            Copy-Item "$release/platforms" $out -Recurse
+          }
+
+          # resources the launcher loads at runtime
+          Copy-Item "source/launcher/icon.ico" "$out/images/icon.ico" -ErrorAction SilentlyContinue
+          if (Test-Path "project-bo4/Latest-Release-Files/project-bo4/launcher/images") {
+            Copy-Item "project-bo4/Latest-Release-Files/project-bo4/launcher/images/*" "$out/images" -ErrorAction SilentlyContinue
+          }
+
+          Compress-Archive -Path "$out/*" -DestinationPath dist/Project_BO4_Launcher_Windows.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: launcher-windows
+          path: dist/Project_BO4_Launcher_Windows.zip
+          if-no-files-found: error
+
+  linux:
+    name: Linux (GCC, system Qt6)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt6 and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential qt6-base-dev qt6-multimedia-dev libgl1-mesa-dev
+
+      - name: Fetch premake5
+        run: |
+          curl -L -o premake.tar.gz https://github.com/premake/premake-core/releases/download/v5.0.0-beta7/premake-5.0.0-beta7-linux.tar.gz
+          tar -xzf premake.tar.gz -C tools
+          chmod +x tools/premake5
+
+      - name: Build
+        run: ./build-linux.sh release
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp build/bin/x64/Release/Shield_Launcher dist/
+          cp -r source/launcher/images dist/images 2>/dev/null || true
+          tar -czf dist/Project_BO4_Launcher_Linux.tar.gz -C dist Shield_Launcher images
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: launcher-linux
+          path: dist/Project_BO4_Launcher_Linux.tar.gz
+          if-no-files-found: error
