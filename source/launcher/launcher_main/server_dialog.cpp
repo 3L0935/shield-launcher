@@ -144,7 +144,8 @@ ServerDialog::ServerDialog(const std::string& gameDir, QWidget* parent)
 
     inviteEdit_ = new QPlainTextEdit(this);
     inviteEdit_->setReadOnly(true);
-    inviteEdit_->setMaximumHeight(90);
+    inviteEdit_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    inviteEdit_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     layout->addWidget(inviteEdit_);
 
     auto* bottomLayout = new QHBoxLayout();
@@ -298,8 +299,9 @@ void ServerDialog::refreshChecks() {
     const bool gamePresent = fs::exists(fs::path(gameDir_) / "BlackOps4.exe");
     add(gamePresent, "BlackOps4.exe in the game folder");
 
-    // no inner scrolling: the list grows with its rows
-    checksList_->setFixedHeight(checksList_->count() * 22 + 10);
+    // no inner scrolling: the list is exactly as tall as its rows
+    const int rowHeight = checksList_->count() > 0 ? checksList_->sizeHintForRow(0) : 22;
+    checksList_->setFixedHeight(checksList_->count() * rowHeight + 8);
 }
 
 void ServerDialog::browseDirectory() {
@@ -431,4 +433,7 @@ void ServerDialog::updateInviteBlock() {
             .arg(ip)
             .arg(config.webPort)
             .arg(config.adminPort));
+
+    const int lines = inviteEdit_->toPlainText().count('\n') + 1;
+    inviteEdit_->setFixedHeight(lines * inviteEdit_->fontMetrics().lineSpacing() + 16);
 }

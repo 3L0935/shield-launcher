@@ -15,11 +15,11 @@
 #include <filesystem>
 
 namespace updater {
-    const std::string SERVER_VERSION = "1.1.1";
+    const std::string SERVER_VERSION = "1.1.1-3L0.3";
 
 #ifdef _WIN32
-    const std::string GITHUB_API_URL = "https://api.github.com/repos/NotNierPea/shield-launcher/releases/latest";
-    const std::string DOWNLOAD_URL_BASE = "https://github.com/NotNierPea/shield-launcher/releases/download/";
+    const std::string GITHUB_API_URL = "https://api.github.com/repos/3L0935/shield-launcher/releases/latest";
+    const std::string DOWNLOAD_URL_BASE = "https://github.com/3L0935/shield-launcher/releases/download/";
 
     bool check_for_updates() {
         logger::write(logger::LOG_LEVEL_DEBUG, logger::LOG_LABEL_INITIALIZER, "Checking GitHub API: %s", GITHUB_API_URL.c_str());
