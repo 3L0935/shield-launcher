@@ -11,7 +11,7 @@ function qt6.run_moc() -- func for qt moc headers needing moc processing with th
     local headers = {
         "source/launcher/launcher_main/launcher_main_window.hpp",
         "source/launcher/launcher_main/settings_dialog.hpp",
-        "source/launcher/launcher_main/mods_dialog.hpp"
+        "source/launcher/launcher_main/mods_dialog.hpp",
 
         -- Add moc headers as needed if u make a new file that requires QT
     }
@@ -99,19 +99,11 @@ function qt6.includes()
     end
 
     includedirs {
-<<<<<<< HEAD
-        qt6.includePath,                         
-        path.join(qt6.includePath, "QtCore"),    
-        path.join(qt6.includePath, "QtGui"),     
-        path.join(qt6.includePath, "QtWidgets"), 
-	path.join(qt6.includePath, "QtNetwork"), 
-=======
         qt6.includePath,
         path.join(qt6.includePath, "QtCore"),
         path.join(qt6.includePath, "QtGui"),
         path.join(qt6.includePath, "QtWidgets"),
-	path.join(qt6.includePath, "QtNNetwork"),
->>>>>>> e1c9a62 (mods: manage the Shield mods from the launcher)
+	path.join(qt6.includePath, "QtNetwork"),
     }
 end
 
