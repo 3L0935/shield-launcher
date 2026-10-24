@@ -1,6 +1,7 @@
 #include "std_include.hpp"
 #include "mods_dialog.hpp"
 #include "style.hpp"
+#include "launcher_funcs/download.hpp"
 #include "window_utils.hpp"
 
 #include <QListWidget>
@@ -194,6 +195,27 @@ void ModsDialog::installSelected() {
 
     pendingArchive_ = archivePath;
 
+    // Qt has no TLS backend in the Windows build (no OpenSSL shipped), every
+    // https request dies with "TLS initialization failed". Use the system tool
+    // there and keep the Qt path where it works, for the progress bar.
+    if (!webdl::qtTlsAvailable()) {
+        progressBar_->setRange(0, 0);
+        setStatus("Downloading " + QString::fromStdString(entry.title) + " ...");
+
+        const std::string error = webdl::download(entry.url, archivePath);
+
+        progressBar_->setVisible(false);
+        installButton_->setEnabled(true);
+
+        if (!error.empty()) {
+            setStatus(QString::fromStdString(error));
+            return;
+        }
+
+        installArchive(archivePath);
+        return;
+    }
+
     reply_ = network_->get(request);
     connect(reply_, &QNetworkReply::downloadProgress, this, &ModsDialog::onDownloadProgress);
     connect(reply_, &QNetworkReply::finished, this, &ModsDialog::onDownloadFinished);
@@ -245,13 +267,18 @@ void ModsDialog::onDownloadFinished() {
         out.write(payload.constData(), payload.size());
     }
 
+    installArchive(pendingArchive_);
+}
+
+void ModsDialog::installArchive(const std::string& archivePath) {
     setStatus("Installing ...");
 
     const std::string workDir = (fs::path(tempDir_->path().toStdString()) / "extract").string();
     std::string installError;
-    const std::string target = mods::installArchive(gameDir_, pendingArchive_, workDir, &installError);
+    const std::string target = mods::installArchive(gameDir_, archivePath, workDir, &installError);
 
     progressBar_->setVisible(false);
+    installButton_->setEnabled(true);
     refresh();
 
     if (target.empty()) {

@@ -27,6 +27,7 @@ private slots:
     void onSelectionChanged();
     void onDownloadProgress(qint64 received, qint64 total);
     void onDownloadFinished();
+    void installArchive(const std::string& archivePath);
 
 private:
     void setStatus(const QString& text);
