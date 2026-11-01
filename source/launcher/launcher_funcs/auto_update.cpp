@@ -11,11 +11,13 @@
 namespace fs = std::filesystem;
 
 namespace updater {
-    // the launcher's own version, the page shows it next to the title
-    const std::string SERVER_VERSION = "1.1.2";
+    // the launcher's own version: a fork build keeps the upstream minor series and
+    // appends its own suffix, the page shows it next to the title
+    const std::string SERVER_VERSION = "1.1.2-3L0.1";
 
-    const std::string GITHUB_API_URL = "https://api.github.com/repos/NotNierPea/shield-launcher/releases/latest";
-    const std::string DOWNLOAD_URL_BASE = "https://github.com/NotNierPea/shield-launcher/releases/download/";
+    // the fork's releases, never NotNierPea's: an upstream asset would replace this binary
+    const std::string GITHUB_API_URL = "https://api.github.com/repos/3L0935/shield-launcher/releases/latest";
+    const std::string DOWNLOAD_URL_BASE = "https://github.com/3L0935/shield-launcher/releases/download/";
 
     namespace {
         // a launcher update is the archive of this platform: the windows one unpacks with

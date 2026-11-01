@@ -1,7 +1,7 @@
 # Launcher for Shield/Project-BO4 Client
 
-The launcher runs on Windows and on Linux from the same page, and manages mods from the launcher
-instead of the in-game manager.
+Fork of [NotNierPea/shield-launcher](https://github.com/NotNierPea/shield-launcher) that also runs on
+Linux and manages mods from the launcher instead of the in-game manager.
 
 One page for both systems: `source/launcher/ui/` (HTML, CSS, JS) is what the launcher shows, and the
 C++ behind it answers the same JSON messages everywhere. Windows hosts that page in WebView2 (the
